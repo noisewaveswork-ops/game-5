@@ -687,55 +687,88 @@ hit(damage = 1) {
     }
 // ---------- Класс босса ----------
 class Boss {
-        // =========================
-        // PHASE DESIGN
-        // =========================
+    constructor(x, y, game) {
+        this.x = x;
+        this.y = y;
+        this.game = game;
 
-        // Phase 1: обучение уклонению
-        if(this.phase===1){
-            if(this.timer%70===0){
-                const a = Math.atan2(this.game.player.y-this.y,this.game.player.x-this.x);
-                const s = diff.bulletSpeed(3.2);
-                this.game.bullets.push(new Bullet(this.x,this.y,a,s,true));
+        this.phase = 1;
+        this.timer = 0;
+    }
+
+    update() {
+
+        this.timer++;
+
+        // =========================
+        // PHASE 1
+        // =========================
+        if (this.phase === 1) {
+
+            if (this.timer % 70 === 0) {
+
+                const a = Math.atan2(
+                    this.game.player.y - this.y,
+                    this.game.player.x - this.x
+                );
+
+                const s = 3.2; // diff.bulletSpeed можно оставить если есть
+
+                this.game.bullets.push(
+                    new Bullet(this.x, this.y, a, s, true)
+                );
             }
         }
 
-        // Phase 2: точные быстрые залпы
-        if(this.phase===2){
-            if(this.timer%50===0){
-                const base = Math.atan2(this.game.player.y-this.y,this.game.player.x-this.x);
-                const s = diff.bulletSpeed(4.5);
+        // =========================
+        // PHASE 2
+        // =========================
+        if (this.phase === 2) {
 
-                for(let i=-1;i<=1;i++){
+            if (this.timer % 50 === 0) {
+
+                const base = Math.atan2(
+                    this.game.player.y - this.y,
+                    this.game.player.x - this.x
+                );
+
+                const s = 4.0;
+
+                for (let i = -1; i <= 1; i++) {
+
                     this.game.bullets.push(
-                        new Bullet(this.x,this.y,base+i*0.12,s,true)
+                        new Bullet(this.x, this.y, base + i * 0.12, s, true)
                     );
                 }
             }
         }
 
-        // Phase 3: контроль пространства скоростью
-        if(this.phase===3){
-            if(this.timer%40===0){
-                for(let i=0;i<4;i++){
-                    const a = (Math.PI*2/4)*i + this.timer*0.05;
-                    const s = diff.bulletSpeed(5.5);
+        // =========================
+        // PHASE 3
+        // =========================
+        if (this.phase === 3) {
 
-                    this.game.bullets.push(new Bullet(this.x,this.y,a,s,true));
+            if (this.timer % 40 === 0) {
+
+                for (let i = 0; i < 4; i++) {
+
+                    const a = (Math.PI * 2 / 4) * i + this.timer * 0.05;
+
+                    this.game.bullets.push(
+                        new Bullet(this.x, this.y, a, 5.0, true)
+                    );
                 }
             }
         }
     }
 
-    draw(ctx){
-        ctx.fillStyle="#ff0033";
+    draw(ctx) {
+        ctx.fillStyle = "#ff0033";
         ctx.beginPath();
-        ctx.arc(this.x,this.y,40,0,Math.PI*2);
+        ctx.arc(this.x, this.y, 40, 0, Math.PI * 2);
         ctx.fill();
     }
 }
-
-
 // ---------- Главный класс игры ----------
 class Game {
     constructor() {
