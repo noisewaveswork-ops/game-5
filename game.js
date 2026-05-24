@@ -786,6 +786,9 @@ class Boss {
 
 if (this.phase === 1) {
 
+    // Медленный плотный круг:
+    // много пуль, но большие проходы читаются легко
+
     if (this.timer % 18 === 0) {
 
         const base =
@@ -811,23 +814,27 @@ if (this.phase === 1) {
 
 if (this.phase === 2) {
 
-    if (this.timer % 8 === 0) {
+    // Убраны квадратные пули в игрока.
+    // Теперь фаза строится вокруг
+    // более плотного, но медленного паттерна.
+
+    if (this.timer % 14 === 0) {
 
         const base =
-            this.timer * 0.09;
+            this.timer * 0.045;
 
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 32; i++) {
 
             const bullet = new Bullet(
                 this.x,
                 this.y,
-                base + i * (Math.PI * 2 / 6),
-                2.5,
+                base + i * (Math.PI * 2 / 32),
+                2.1,
                 true
             );
 
-            bullet.width = 9;
-            bullet.height = 9;
+            bullet.width = 8;
+            bullet.height = 8;
 
             this.game.bullets.push(bullet);
         }
@@ -836,18 +843,22 @@ if (this.phase === 2) {
 
 if (this.phase === 3) {
 
-    if (this.timer % 5 === 0) {
+    // Вместо быстрых атак в игрока —
+    // комбинация медленных вращающихся колец
+    // и медленного "дождя".
+
+    if (this.timer % 10 === 0) {
 
         const base =
-            this.timer * 0.12;
+            this.timer * 0.04;
 
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 40; i++) {
 
             const bullet = new Bullet(
                 this.x,
                 this.y,
-                base + i * (Math.PI * 2 / 8),
-                2.8,
+                base + i * (Math.PI * 2 / 40),
+                2.2,
                 true
             );
 
