@@ -832,25 +832,6 @@ if (this.phase === 2) {
             this.game.bullets.push(bullet);
         }
     }
-
-    if (this.timer % 90 === 0) {
-
-        for (let i = -6; i <= 6; i++) {
-
-            const bullet = new Bullet(
-                this.x,
-                this.y,
-                Math.PI / 2 + i * 0.06,
-                1.8,
-                true
-            );
-
-            bullet.width = 12;
-            bullet.height = 12;
-
-            this.game.bullets.push(bullet);
-        }
-    }
 }
 
 if (this.phase === 3) {
@@ -1575,7 +1556,7 @@ buildWave(waveNumber) {
 
     else if (waveNumber === 2) {
 
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 1; i++) {
 
             queue.push({
                 type:'dualStream',
