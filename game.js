@@ -1,0 +1,2149 @@
+// ---------- Звуковой менеджер (Web Audio API синтез) ----------
+class SoundManager {
+    constructor() {
+        this.ctx = null;
+        this.initialized = false;
+        this.bgmElement = document.getElementById('bgMusic');
+    }
+
+    init() {
+    if (this.initialized) {
+
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+
+        return;
+    }
+
+    try {
+
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+
+        const buf = this.ctx.createBuffer(1, 1, 22050);
+        const src = this.ctx.createBufferSource();
+
+        src.buffer = buf;
+        src.connect(this.ctx.destination);
+        src.start(0);
+
+    } catch(e) {
+
+        console.warn('Web Audio API не поддерживается');
+    }
+
+    this.initialized = true;
+}
+
+    playTone(freq, duration, type = 'square', volume = 0.15) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
+    playNoise(duration, volume = 0.2) {
+        if (!this.ctx) return;
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        source.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start();
+    }
+
+    playerShoot() { this.playTone(880, 0.05, 'square', 0.08); }
+    enemyShoot() { this.playTone(440, 0.05, 'square', 0.03); }
+    enemyHit() { this.playNoise(0.03, 0.1); }
+    bossHit() { this.playNoise(0.05, 0.15); }
+    bomb() {
+        this.playNoise(0.5, 0.25);
+        if (this.ctx) setTimeout(() => this.playTone(80, 0.3, 'sawtooth', 0.2), 50);
+    }
+    playerDeath() { this.playTone(150, 0.8, 'sawtooth', 0.2); }
+    waveStart() {
+        this.playTone(880, 0.1, 'square', 0.1);
+        if (this.ctx) setTimeout(() => this.playTone(1100, 0.1, 'square', 0.1), 100);
+    }
+    bossAppear() {
+        this.playTone(200, 0.3, 'sawtooth', 0.15);
+        if (this.ctx) setTimeout(() => this.playTone(300, 0.5, 'sawtooth', 0.2), 200);
+    }
+    bossPhaseChange() {
+        this.playTone(600, 0.15, 'square', 0.1);
+        if (this.ctx) setTimeout(() => this.playTone(800, 0.15, 'square', 0.1), 150);
+        if (this.ctx) setTimeout(() => this.playTone(1000, 0.2, 'square', 0.12), 300);
+    }
+    pauseAll() {
+    if (this.bgmElement) {
+        this.bgmElement.pause();
+        this.bgmElement.currentTime = 0;
+    }
+
+    if (this.ctx) {
+        this.ctx.suspend(); // ключевая вещь для мобилок
+    }
+}
+}
+
+// ---------- Основные классы ----------
+class Player {
+    constructor(x, y, image) {
+        this.x = x;
+        this.y = y;
+        this.image = image;
+        this.width = image ? image.width : 16;
+        this.height = image ? image.height : 16;
+        this.lives = 2;
+        this.bombs = 3;
+        this.score = 0;
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
+        this.shootCooldown = 0;
+this.lastShotTime = 0;
+    }
+
+    update(targetX, targetY) {
+        this.x = targetX;
+        this.y = targetY;
+        const halfW = this.width / 2;
+        const halfH = this.height / 2;
+        this.x = Math.max(halfW, Math.min(400 - halfW, this.x));
+        this.y = Math.max(120, Math.min(540, this.y));
+
+        if (this.invulnerable) {
+            this.invulnerableTimer--;
+            if (this.invulnerableTimer <= 0) this.invulnerable = false;
+        }
+        if (this.shootCooldown > 0) this.shootCooldown--;
+    }
+
+    draw(ctx) {
+        ctx.save();
+        if (!this.invulnerable || Math.floor(Date.now() / 100) % 2) {
+            if (this.image && this.image.complete && this.image.naturalWidth > 0) {
+                const w = this.width;
+                const h = this.height;
+                ctx.drawImage(this.image, this.x - w/2, this.y - h/2 + 30, w, h);
+            } else {
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#00ffcc';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - 12);
+                ctx.lineTo(this.x - 8, this.y + 8);
+                ctx.lineTo(this.x + 8, this.y + 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y - 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.fillStyle = '#7ab6ff';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#7ab6ff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = '#7ab6ff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    hit() {
+        if (!this.invulnerable) {
+            this.lives--;
+            this.invulnerable = true;
+            this.invulnerableTimer = 90;
+            return true;
+        }
+        return false;
+    }
+
+    useBomb() {
+        if (this.bombs > 0) {
+            this.bombs--;
+            return true;
+        }
+        return false;
+    }
+}
+
+class Bullet {
+    constructor(x, y, angle, speed, isEnemy = true) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.speed = speed;
+        this.width = isEnemy ? 5 : 14;
+        this.height = isEnemy ? 5 : 6;
+        this.isEnemy = isEnemy;
+        this.color = isEnemy ? '#ff0023' : '#d9d9d9';
+        this.damage = 1;
+    }
+
+    update() {
+
+    if (this.customUpdate) {
+        this.customUpdate();
+    }
+
+    this.x += Math.cos(this.angle) * this.speed;
+    this.y += Math.sin(this.angle) * this.speed;
+}
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = this.color;
+        ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+        ctx.restore();
+    }
+
+    isOffScreen() {
+        return this.x < -20 || this.x > 420 || this.y < -20 || this.y > 620;
+    }
+}
+
+class HomingBullet extends Bullet {
+    constructor(x, y, game) {
+        super(x, y, -Math.PI / 2, 6, false);
+        this.game = game;
+        this.color = '#d9d9d9';
+        this.width = 14;
+        this.height = 6;
+        this.damage = 0.4;
+        this.turnSpeed = 0.08;
+    }
+
+    update() {
+        let closestTarget = null;
+        let closestDist = Infinity;
+        
+        for (let enemy of this.game.enemies) {
+            const dx = enemy.x - this.x;
+            const dy = enemy.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestTarget = enemy;
+            }
+        }
+        
+        if (this.game.boss) {
+            const dx = this.game.boss.x - this.x;
+            const dy = this.game.boss.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestTarget = this.game.boss;
+            }
+        }
+        
+        if (closestTarget) {
+            const desiredAngle = Math.atan2(closestTarget.y - this.y, closestTarget.x - this.x);
+            let angleDiff = desiredAngle - this.angle;
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            if (angleDiff > this.turnSpeed) this.angle += this.turnSpeed;
+            else if (angleDiff < -this.turnSpeed) this.angle -= this.turnSpeed;
+            else this.angle = desiredAngle;
+        }
+        super.update();
+    }
+}
+
+class Enemy {
+    constructor(x, y, type, pattern) {
+        this.x = x;
+        this.y = y;
+        this.pattern = pattern;
+        this.timer = 0;
+        this.health = pattern.health || 1;
+        this.maxHealth = this.health;
+        this.points = pattern.points || 100;
+        this.type = type || 'needle';
+        this.elite = pattern.elite || false;
+    }
+
+    update() {
+        this.timer++;
+        if (this.pattern.update) this.pattern.update(this);
+    }
+
+
+    draw(ctx) {
+
+    ctx.save();
+
+    ctx.translate(this.x, this.y);
+
+    switch(this.type) {
+
+        case 'needle':
+            this.drawNeedle(ctx);
+            break;
+
+        case 'disc':
+            this.drawDisc(ctx);
+            break;
+
+        case 'crab':
+            this.drawCrab(ctx);
+            break;
+
+        case 'flower':
+            this.drawFlower(ctx);
+            break;
+
+        case 'coffin':
+            this.drawCoffin(ctx);
+            break;
+
+        default:
+            this.drawNeedle(ctx);
+    }
+
+    ctx.restore();
+
+    // HP BAR
+
+    if (this.health < this.maxHealth) {
+
+        const w = 40;
+
+        ctx.fillStyle = '#080808';
+
+        ctx.fillRect(
+            this.x - w/2,
+            this.y - 36,
+            w,
+            4
+        );
+
+        ctx.fillStyle = '#ff0023';
+
+        ctx.fillRect(
+            this.x - w/2,
+            this.y - 36,
+            w * (this.health / this.maxHealth),
+            4
+        );
+    }
+}
+
+    drawNeedle(ctx) {
+
+    const t = this.timer;
+
+    // glow
+
+    const aura = ctx.createRadialGradient(
+        0,0,2,
+        0,0,40
+    );
+
+    aura.addColorStop(0,'rgba(255,0,35,0.4)');
+    aura.addColorStop(1,'rgba(255,0,35,0)');
+
+    ctx.fillStyle = aura;
+
+    ctx.beginPath();
+    ctx.arc(0,0,40,0,Math.PI*2);
+    ctx.fill();
+
+    // body
+
+    ctx.fillStyle = '#080808';
+
+    ctx.beginPath();
+
+    ctx.moveTo(0,-26);
+    ctx.lineTo(16,18);
+    ctx.lineTo(0,10);
+    ctx.lineTo(-16,18);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    // armor
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+
+    ctx.moveTo(0,-20);
+    ctx.lineTo(0,12);
+
+    ctx.stroke();
+
+    // core
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ff0023';
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        -2 + Math.sin(t*0.1)*2,
+        5,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+    drawDisc(ctx) {
+
+    const t = this.timer;
+
+    // outer ring
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.lineWidth = 2;
+
+    ctx.rotate(t * 0.02);
+
+    ctx.beginPath();
+    ctx.arc(0,0,24,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.rotate(-t * 0.02);
+
+    // body
+
+    ctx.fillStyle = '#080808';
+
+    ctx.beginPath();
+    ctx.arc(0,0,18,0,Math.PI*2);
+    ctx.fill();
+
+    // inner eye
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = '#ff0023';
+
+    ctx.beginPath();
+    ctx.arc(0,0,7,0,Math.PI*2);
+    ctx.fill();
+
+    // lines
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    for(let i=0;i<4;i++){
+
+        const a = (Math.PI*2/4)*i;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            Math.cos(a)*8,
+            Math.sin(a)*8
+        );
+
+        ctx.lineTo(
+            Math.cos(a)*18,
+            Math.sin(a)*18
+        );
+
+        ctx.stroke();
+    }
+}
+
+    drawCrab(ctx) {
+
+    const t = this.timer;
+
+    // body
+
+    ctx.fillStyle = '#080808';
+
+    ctx.fillRect(-30,-14,60,28);
+
+    // side claws
+
+    ctx.beginPath();
+
+    ctx.moveTo(-30,-8);
+    ctx.lineTo(-48,0);
+    ctx.lineTo(-30,8);
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.moveTo(30,-8);
+    ctx.lineTo(48,0);
+    ctx.lineTo(30,8);
+
+    ctx.fill();
+
+    // top armor
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.lineWidth = 2;
+
+    for(let i=-2;i<=2;i++){
+
+        ctx.beginPath();
+
+        ctx.moveTo(i*8,-12);
+        ctx.lineTo(i*8,12);
+
+        ctx.stroke();
+    }
+
+    // cannons
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ff0023';
+
+    ctx.beginPath();
+
+    ctx.arc(
+        -18,
+        0,
+        5 + Math.sin(t*0.1)*1.5,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.arc(
+        18,
+        0,
+        5 + Math.sin(t*0.1+1)*1.5,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+    drawFlower(ctx) {
+
+    const t = this.timer;
+
+    // petals
+
+    for(let i=0;i<6;i++){
+
+        const a =
+            t*0.03 +
+            i*(Math.PI*2/6);
+
+        ctx.fillStyle = '#080808';
+
+        ctx.beginPath();
+
+        ctx.ellipse(
+            Math.cos(a)*16,
+            Math.sin(a)*16,
+            8,
+            16,
+            a,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+
+    // core
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#ff0023';
+
+    ctx.beginPath();
+
+    ctx.arc(0,0,10,0,Math.PI*2);
+
+    ctx.fill();
+
+    // ring
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+
+    ctx.arc(0,0,26,0,Math.PI*2);
+
+    ctx.stroke();
+}
+
+    drawCoffin(ctx) {
+
+    const t = this.timer;
+
+    // body
+
+    ctx.fillStyle = '#080808';
+
+    ctx.beginPath();
+
+    ctx.moveTo(0,-34);
+
+    ctx.lineTo(18,-18);
+    ctx.lineTo(18,24);
+
+    ctx.lineTo(0,38);
+
+    ctx.lineTo(-18,24);
+    ctx.lineTo(-18,-18);
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    // armor lines
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.lineWidth = 2;
+
+    for(let i=-2;i<=2;i++){
+
+        ctx.beginPath();
+
+        ctx.moveTo(i*5,-20);
+        ctx.lineTo(i*5,24);
+
+        ctx.stroke();
+    }
+
+    // energy core
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = '#ff0023';
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        7 + Math.sin(t*0.15)*2,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+hit(damage = 1) {
+    this.health -= damage;
+    return this.health <= 0;
+}
+    }
+// ---------- Класс босса ----------
+class Boss {
+        // =========================
+        // PHASE DESIGN
+        // =========================
+
+        // Phase 1: обучение уклонению
+        if(this.phase===1){
+            if(this.timer%70===0){
+                const a = Math.atan2(this.game.player.y-this.y,this.game.player.x-this.x);
+                const s = diff.bulletSpeed(3.2);
+                this.game.bullets.push(new Bullet(this.x,this.y,a,s,true));
+            }
+        }
+
+        // Phase 2: точные быстрые залпы
+        if(this.phase===2){
+            if(this.timer%50===0){
+                const base = Math.atan2(this.game.player.y-this.y,this.game.player.x-this.x);
+                const s = diff.bulletSpeed(4.5);
+
+                for(let i=-1;i<=1;i++){
+                    this.game.bullets.push(
+                        new Bullet(this.x,this.y,base+i*0.12,s,true)
+                    );
+                }
+            }
+        }
+
+        // Phase 3: контроль пространства скоростью
+        if(this.phase===3){
+            if(this.timer%40===0){
+                for(let i=0;i<4;i++){
+                    const a = (Math.PI*2/4)*i + this.timer*0.05;
+                    const s = diff.bulletSpeed(5.5);
+
+                    this.game.bullets.push(new Bullet(this.x,this.y,a,s,true));
+                }
+            }
+        }
+    }
+
+    draw(ctx){
+        ctx.fillStyle="#ff0033";
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,40,0,Math.PI*2);
+        ctx.fill();
+    }
+}
+
+
+// ---------- Главный класс игры ----------
+class Game {
+    constructor() {
+        this.midboss = null;
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = 400;
+        this.canvas.height = 600;
+
+        this.isMobile = window.matchMedia("(pointer: coarse)").matches;
+        this.showCorrectControls();
+
+        this.sound = new SoundManager();
+        this.gameStarted = false;
+
+        this.bgImage = new Image();
+        this.bgImage.src = 'assets/background.png';
+        this.bgY = 0;
+        this.bgSpeed = 5;
+
+        this.playerImage = new Image();
+        this.playerImage.src = 'assets/player.png';
+
+        this.heartFull = new Image();
+        this.heartFull.src = 'assets/heart_full.png';
+        this.heartEmpty = new Image();
+        this.heartEmpty.src = 'assets/heart_empty.png';
+        this.bombFull = new Image();
+        this.bombFull.src = 'assets/bomb_full.png';
+        this.bombEmpty = new Image();
+        this.bombEmpty.src = 'assets/bomb_empty.png';
+        
+        this.uiPanel = new Image();
+        this.uiPanel.src = 'assets/ui.png';
+
+        this.player = new Player(200, 500, this.playerImage);
+        this.bullets = [];
+        this.enemies = [];
+        this.boss = null;
+        this.mouseX = 200;
+        this.mouseY = 500;
+        this.gameRunning = false;
+        this.gameOver = false;
+        this.gameComplete = false;
+        this.wave = 0;
+        this.waveStep = 0;
+        this.waveSpawnQueue = [];
+        this.spawnTimer = 0;
+        this.gameTimer = 0;
+        this.bossSpawned = false;
+
+        this.laserMode = false;
+        this.laserKeyDown = false;
+        this.twoFingers = false;
+
+        this.touchStartTime = 0;
+        this.touchStartPos = null;
+        this.touchStartFingers = 0;
+
+        this.countdown = 0;
+        this.countdownTimer = 0;
+        this.countdownText = '';
+
+        this.bombIconPositions = [];
+
+        this.lastTime = 0;
+        this.accumulator = 0;
+        this.fixedDelta = 1000 / 60;
+
+        this.defineWavePatterns();
+        this.setupEventListeners();
+        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+    }
+
+defineWavePatterns() {
+
+    this.patterns = {
+
+        mirrorNeedle: {
+
+    health: 7,
+    points: 500,
+
+    update: (enemy) => {
+
+        enemy.y += 0.4;
+
+        if (enemy.timer % 24 === 0) {
+
+            const dir =
+                enemy.x < 200 ? 1 : -1;
+
+            for (let i = 0; i < 5; i++) {
+
+                const bullet = new Bullet(
+                    enemy.x,
+                    enemy.y,
+                    Math.PI/2 + dir * i * 0.12,
+                    3,
+                    true
+                );
+
+                bullet.width = 8;
+                bullet.height = 8;
+
+                this.bullets.push(bullet);
+            }
+        }
+    }
+},
+
+        eliteCoffin: {
+
+    health: 60,
+    points: 4000,
+
+    elite: true,
+
+    update: (enemy) => {
+
+        if (!enemy.locked) {
+
+            enemy.y += 0.5;
+
+            if (enemy.y >= 120) {
+
+                enemy.y = 120;
+
+                enemy.locked = true;
+            }
+        }
+
+        if (enemy.timer % 6 === 0) {
+
+            const base =
+                enemy.timer * 0.05;
+
+            for (let i = 0; i < 3; i++) {
+
+                const bullet = new Bullet(
+                    enemy.x,
+                    enemy.y,
+                    base + i * (Math.PI*2/3),
+                    2.6,
+                    true
+                );
+
+                bullet.width = 10;
+                bullet.height = 10;
+
+                this.bullets.push(bullet);
+            }
+        }
+
+        if (enemy.timer % 90 === 0) {
+
+            const angle = Math.atan2(
+                this.player.y - enemy.y,
+                this.player.x - enemy.x
+            );
+
+            const bullet = new Bullet(
+                enemy.x,
+                enemy.y,
+                angle,
+                5,
+                true
+            );
+
+            bullet.width = 18;
+            bullet.height = 18;
+
+            this.bullets.push(bullet);
+        }
+    }
+},
+
+        orbitDisc: {
+
+    health: 10,
+    points: 700,
+
+    update: (enemy) => {
+
+        if (!enemy.init) {
+
+            enemy.init = true;
+
+            enemy.centerX = enemy.x;
+            enemy.centerY = enemy.y;
+
+            enemy.radius = 90;
+        }
+
+        const a = enemy.timer * 0.03;
+
+        enemy.x =
+            enemy.centerX +
+            Math.cos(a) * enemy.radius;
+
+        enemy.y =
+            enemy.centerY +
+            Math.sin(a) * 40;
+
+        if (enemy.timer % 35 === 0) {
+
+            for (let i = 0; i < 12; i++) {
+
+                const bullet = new Bullet(
+                    enemy.x,
+                    enemy.y,
+                    (Math.PI*2/12)*i,
+                    2,
+                    true
+                );
+
+                bullet.width = 7;
+                bullet.height = 7;
+
+                this.bullets.push(bullet);
+            }
+        }
+    }
+},
+
+        spiralFlower: {
+
+    health: 16,
+    points: 1200,
+
+    update: (enemy) => {
+
+        enemy.y += 0.15;
+
+        if (enemy.timer % 3 === 0) {
+
+            const base =
+                enemy.timer * 0.09;
+
+            for (let i = 0; i < 2; i++) {
+
+                const bullet = new Bullet(
+                    enemy.x,
+                    enemy.y,
+                    base + Math.PI * i,
+                    2.4,
+                    true
+                );
+
+                bullet.width = 8;
+                bullet.height = 8;
+                bullet.color = '#ff0023';
+
+                this.bullets.push(bullet);
+            }
+        }
+    }
+},
+
+        centerBloom: {
+
+            health: 12,
+            points: 800,
+
+            update: (enemy) => {
+
+                if (!enemy.locked) {
+                    enemy.locked = true;
+                    enemy.y = 120;
+                }
+
+                if (enemy.timer % 40 === 0) {
+
+                    for (let i = 0; i < 24; i++) {
+
+                        const angle =
+                            (Math.PI * 2 / 24) * i;
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            angle,
+                            2.2,
+                            true
+                        );
+
+                        bullet.width = 8;
+                        bullet.height = 8;
+                        bullet.color = '#ff3355';
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        },
+
+        streamCenter: {
+
+            health: 8,
+            points: 500,
+
+            update: (enemy) => {
+
+                enemy.y += 0.45;
+
+                if (enemy.timer % 8 === 0) {
+
+                    for (let i = -2; i <= 2; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            Math.PI / 2 + i * 0.1,
+                            3,
+                            true
+                        );
+
+                        bullet.width = 9;
+                        bullet.height = 9;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        }
+
+    };
+}
+
+    // =====================================
+// НОВЫЕ ВОЛНЫ ДЛЯ ОБУЧЕНИЯ ВЗГЛЯДУ В ЦЕНТР
+// Игрок теперь вынужден смотреть в середину поля,
+// иначе паттерны читаются слишком поздно.
+// =====================================
+
+buildWave(waveNumber) {
+
+    const queue = [];
+
+    let t = 0;
+
+    // =====================================
+    // WAVE 1
+    // BASIC CENTER READING
+    // =====================================
+
+    if (waveNumber === 1) {
+
+        queue.push({
+            type:'streamCenter',
+            enemyType:'needle',
+            x:200,
+            y:-40,
+            delay:t
+        });
+
+        t += 80;
+
+
+        queue.push({
+            type:'centerBloom',
+            enemyType:'flower',
+            x:200,
+            y:90,
+            delay:t
+        });
+
+        t += 180;
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:90,
+            y:-20,
+            delay:t
+        });
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:310,
+            y:-20,
+            delay:t
+        });
+
+        t += 240;
+    }
+
+    // =====================================
+    // WAVE 2
+    // MIRROR PRESSURE
+    // =====================================
+
+    else if (waveNumber === 2) {
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:100,
+            y:-20,
+            delay:t
+        });
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:300,
+            y:-20,
+            delay:t
+        });
+
+        t += 120;
+
+
+        queue.push({
+            type:'orbitDisc',
+            enemyType:'disc',
+            x:200,
+            y:140,
+            delay:t
+        });
+
+        t += 220;
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:80,
+            y:-20,
+            delay:t
+        });
+
+        t += 40;
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:320,
+            y:-20,
+            delay:t
+        });
+
+        t += 180;
+
+        queue.push({
+            type:'centerBloom',
+            enemyType:'flower',
+            x:200,
+            y:110,
+            delay:t
+        });
+
+        t += 240;
+    }
+
+    // =====================================
+    // WAVE 3
+    // MEMORY + SPIRALS
+    // =====================================
+
+    else if (waveNumber === 3) {
+
+        queue.push({
+            type:'spiralFlower',
+            enemyType:'flower',
+            x:120,
+            y:80,
+            delay:t
+        });
+
+        t += 90;
+
+        queue.push({
+            type:'spiralFlower',
+            enemyType:'flower',
+            x:280,
+            y:80,
+            delay:t
+        });
+
+        t += 150;
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:70,
+            y:-20,
+            delay:t
+        });
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:330,
+            y:-20,
+            delay:t
+        });
+
+        t += 150;
+
+        queue.push({
+            type:'streamCenter',
+            enemyType:'needle',
+            x:200,
+            y:-20,
+            delay:t
+        });
+
+        t += 220;
+
+        queue.push({
+            type:'centerBloom',
+            enemyType:'flower',
+            x:200,
+            y:100,
+            delay:t
+        });
+
+        t += 240;
+    }
+
+    // =====================================
+    // WAVE 4
+    // ELITE CONTROL
+    // =====================================
+
+    else if (waveNumber === 4) {
+
+
+        queue.push({
+            type:'orbitDisc',
+            enemyType:'disc',
+            x:140,
+            y:130,
+            delay:t
+        });
+
+        t += 80;
+
+        queue.push({
+            type:'orbitDisc',
+            enemyType:'disc',
+            x:260,
+            y:130,
+            delay:t
+        });
+
+        t += 220;
+
+        queue.push({
+            type:'eliteCoffin',
+            enemyType:'coffin',
+            x:200,
+            y:-80,
+            delay:t
+        });
+    }
+
+    // =====================================
+    // WAVE 5
+    // FINAL PRESSURE BEFORE MIDBOSS
+    // =====================================
+
+    else if (waveNumber === 5) {
+
+        queue.push({
+            type:'centerBloom',
+            enemyType:'flower',
+            x:200,
+            y:100,
+            delay:t
+        });
+
+        t += 120;
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:70,
+            y:-20,
+            delay:t
+        });
+
+        queue.push({
+            type:'mirrorNeedle',
+            enemyType:'needle',
+            x:330,
+            y:-20,
+            delay:t
+        });
+
+        t += 120;
+
+        queue.push({
+            type:'orbitDisc',
+            enemyType:'disc',
+            x:200,
+            y:140,
+            delay:t
+        });
+
+        t += 160;
+
+        queue.push({
+            type:'spiralFlower',
+            enemyType:'flower',
+            x:120,
+            y:70,
+            delay:t
+        });
+
+        t += 50;
+
+        queue.push({
+            type:'spiralFlower',
+            enemyType:'flower',
+            x:280,
+            y:70,
+            delay:t
+        });
+
+        t += 180;
+
+        queue.push({
+            type:'eliteCoffin',
+            enemyType:'coffin',
+            x:200,
+            y:-80,
+            delay:t
+        });
+
+        t += 240;
+
+        queue.push({
+            type:'streamCenter',
+            enemyType:'needle',
+            x:120,
+            y:-20,
+            delay:t
+        });
+
+        t += 40;
+
+        queue.push({
+            type:'streamCenter',
+            enemyType:'needle',
+            x:280,
+            y:-20,
+            delay:t
+        });
+
+        t += 60;
+
+        queue.push({
+            type:'streamCenter',
+            enemyType:'needle',
+            x:200,
+            y:-20,
+            delay:t
+        });
+
+        t += 260;
+    }
+
+    return queue;
+}
+   
+
+    nextWave() {
+        this.wave++;
+        this.waveStep = 0;
+
+if (this.wave === 5 && !this.midboss) {
+
+    this.midboss = new MidBoss(
+        200,
+        -100,
+        this
+    );
+
+    return;
+}
+
+        
+        if (this.wave >= 10) {
+            this.wave = 10;
+            this.spawnBoss();
+            return;
+        }
+        
+        this.waveSpawnQueue = this.buildWave(this.wave);
+        this.spawnTimer = 0;
+        this.player.score += 200 * this.wave;
+        if (this.wave > 1) this.sound.waveStart();
+    }
+
+    spawnBoss() {
+        this.boss = new Boss(200, -50, this);
+        this.bossSpawned = true;
+        this.enemies = [];
+        this.waveSpawnQueue = [];
+    }
+
+    spawnFromQueue() {
+        if (this.bossSpawned) return;
+        
+        if (this.waveSpawnQueue.length === 0) {
+            if (this.enemies.length === 0 && this.wave < 10) this.nextWave();
+            return;
+        }
+        while (this.waveSpawnQueue.length > 0 && this.spawnTimer >= this.waveSpawnQueue[0].delay) {
+            const spec = this.waveSpawnQueue.shift();
+            const pattern = this.patterns[spec.type];
+            if (pattern) this.enemies.push(
+    new Enemy(
+        spec.x,
+        spec.y,
+        spec.enemyType || 'needle',
+        pattern
+    )
+);
+        }
+        this.spawnTimer++;
+    }
+
+    showCorrectControls() {
+        document.getElementById('desktopControls').classList.toggle('hidden', this.isMobile);
+        document.getElementById('mobileControls').classList.toggle('hidden', !this.isMobile);
+    }
+
+    isTapOnBomb(tx, ty) {
+        for (let pos of this.bombIconPositions) {
+            if (tx >= pos.x && tx <= pos.x + pos.size &&
+                ty >= pos.y && ty <= pos.y + pos.size) {
+                return pos.index;
+            }
+        }
+        return -1;
+    }
+
+    setupEventListeners() {
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            this.mouseX = (e.clientX - rect.left) * scaleX;
+            this.mouseY = (e.clientY - rect.top) * scaleY;
+            this.player.update(this.mouseX, this.mouseY);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyZ') this.laserKeyDown = true;
+            if (e.code === 'KeyX') this.useBomb();
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'KeyZ') this.laserKeyDown = false;
+        });
+
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!this.gameRunning || this.gameOver || this.gameComplete) return;
+            
+            const touches = e.touches;
+            this.twoFingers = touches.length >= 2;
+            this.touchStartFingers = touches.length;
+            
+            const rect = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const touch = touches[0];
+            const tx = (touch.clientX - rect.left) * scaleX;
+            const ty = (touch.clientY - rect.top) * scaleY;
+            
+            if (this.isMobile) {
+                const bombIndex = this.isTapOnBomb(tx, ty);
+                if (bombIndex !== -1) {
+                    this.useBomb();
+                    return;
+                }
+            }
+            
+            if (touches.length === 1) {
+                this.touchStartTime = Date.now();
+                this.touchStartPos = { x: tx, y: ty };
+            }
+            this.updateMobilePosition(touches);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.gameRunning || this.gameOver || this.gameComplete) return;
+            this.twoFingers = e.touches.length >= 2;
+            this.updateMobilePosition(e.touches);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (!this.gameRunning || this.gameOver || this.gameComplete) {
+                this.twoFingers = false;
+                return;
+            }
+            
+            if (this.touchStartFingers === 1 && this.touchStartPos) {
+                const dt = Date.now() - this.touchStartTime;
+                const dx = Math.abs(this.mouseX - this.touchStartPos.x);
+                const dy = Math.abs(this.mouseY - this.touchStartPos.y);
+                if (dt < 300 && dx < 20 && dy < 20) this.useBomb();
+            }
+            
+            this.twoFingers = e.touches.length >= 2;
+            if (e.touches.length > 0) this.updateMobilePosition(e.touches);
+            this.touchStartPos = null;
+            this.touchStartFingers = 0;
+        });
+
+        document.getElementById('startButton').addEventListener('click', async () => {
+
+    this.sound.init();
+
+    const bgm = document.getElementById('bgMusic');
+
+    if (bgm) {
+
+        try {
+
+            bgm.currentTime = 0;
+            bgm.volume = 0.7;
+
+            if (bgm.paused) {
+                await bgm.play();
+            }
+
+        } catch(e) {
+
+            console.error('Ошибка музыки:', e);
+        }
+    }
+
+    this.startCountdown();
+});
+
+        document.getElementById('restartButton').addEventListener('click', async () => {
+
+    const bgm = document.getElementById('bgMusic');
+
+    if (bgm && bgm.paused) {
+
+        try {
+
+            await bgm.play();
+
+        } catch(e) {
+
+            console.error('Ошибка музыки:', e);
+        }
+    }
+
+    this.startCountdown();
+});
+
+} // ← ВОТ ЭТОЙ СКОБКИ НЕ ХВАТАЕТ
+
+updateMobilePosition(touches) {
+        if (touches.length === 0) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const touch = touches[0];
+        let tx = (touch.clientX - rect.left) * scaleX;
+        let ty = (touch.clientY - rect.top) * scaleY;
+        ty = Math.max(20, ty - 80);
+        this.player.update(tx, ty);
+        this.mouseX = tx;
+        this.mouseY = ty;
+    }
+
+    startCountdown() {
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('gameOver').classList.add('hidden');
+        this.player = new Player(200, 500, this.playerImage);
+        this.bullets = [];
+        this.enemies = [];
+        this.boss = null;
+        this.wave = 0;
+        this.gameTimer = 0;
+        this.bossSpawned = false;
+        this.nextWave();
+        this.laserMode = false;
+        this.laserKeyDown = false;
+        this.twoFingers = false;
+        this.gameRunning = false;
+        this.gameOver = false;
+        this.gameComplete = false;
+        this.gameStarted = true;
+        this.countdown = 3;
+        this.countdownTimer = 60;
+        this.countdownText = '3';
+    }
+
+    useBomb() {
+        if (this.player.useBomb()) {
+            this.bullets = this.bullets.filter(b => !b.isEnemy);
+            if (this.boss) {
+                if (this.boss.hit(10)) {
+                    this.player.score += this.boss.points;
+                    this.boss = null;
+                    this.completeGame();
+                }
+                this.sound.bossHit();
+            }
+            this.enemies.forEach(enemy => {
+                if (enemy.hit(3)) this.player.score += enemy.points * 2;
+            });
+            this.enemies = this.enemies.filter(e => e.health > 0);
+            this.sound.bomb();
+        }
+    }
+
+    completeGame() {
+        this.gameRunning = false;
+        this.gameComplete = true;
+        document.getElementById('finalScore').textContent = `Победа! Счёт: ${this.player.score}`;
+        document.getElementById('gameOver').classList.remove('hidden');
+        document.querySelector('#gameOver h2').textContent = 'Поздравляем!';
+        document.querySelector('#gameOver h2').style.color = '#7ab6ff';
+        this.sound.waveStart();
+        
+        if (this.sound.bgmElement) {
+            this.sound.bgmElement.pause();
+        }
+    }
+
+    update() {
+        if (!this.isMobile) {
+            this.player.update(this.mouseX, this.mouseY);
+            }
+        if (this.countdown > 0) {
+            this.countdownTimer--;
+            if (this.countdownTimer <= 0) {
+                this.countdown--;
+                if (this.countdown > 0) {
+                    this.countdownText = this.countdown.toString();
+                    this.countdownTimer = 60;
+                } else {
+                    this.countdownText = '';
+                    this.gameRunning = true;
+                }
+            }
+            return;
+        }
+
+        if (!this.gameRunning || this.gameOver || this.gameComplete) return;
+
+        this.bgY = (this.bgY + this.bgSpeed) % this.canvas.height;
+
+        this.gameTimer++;
+
+        if (!this.bossSpawned && this.wave >= 10) {
+            this.spawnBoss();
+        }
+
+        this.laserMode = this.laserKeyDown || this.twoFingers;
+
+        const now = performance.now();
+
+if (!this.laserMode) {
+    if (now - this.player.lastShotTime > 120) {
+        this.bullets.push(new Bullet(this.player.x, this.player.y - 15, -Math.PI / 2, 9, false));
+        this.player.lastShotTime = now;
+        this.sound.playerShoot();
+    }
+}
+
+if (this.laserMode) {
+    if (now - this.player.lastShotTime > 200) {
+        this.bullets.push(new HomingBullet(this.player.x, this.player.y - 5, this));
+        this.player.lastShotTime = now;
+        this.sound.playerShoot();
+    }
+}
+        if (this.isMobile) this.player.update(this.mouseX, this.mouseY);
+
+if (this.midboss) {
+
+    this.midboss.update();
+
+    if (this.midboss.health <= 0) {
+
+        this.player.score += this.midboss.points;
+
+        this.midboss = null;
+    }
+}
+        
+        if (this.boss) {
+            this.boss.update();
+            if (this.boss.health <= 0) {
+                this.player.score += this.boss.points;
+                this.boss = null;
+                this.completeGame();
+            }
+        }
+
+        this.bullets.forEach(b => b.update());
+        this.bullets = this.bullets.filter(b => !b.isOffScreen());
+
+        this.enemies.forEach(e => e.update());
+        this.enemies = this.enemies.filter(e => e.y < 600);
+        
+        if (!this.bossSpawned) {
+            this.spawnFromQueue();
+        }
+        
+        this.checkCollisions();
+
+        if (!this.bossSpawned && this.enemies.length === 0 && this.waveSpawnQueue.length === 0 && this.wave < 10) {
+            this.nextWave();
+        }
+    }
+
+    checkCollisions() {
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            if (!bullet.isEnemy) {
+                if (this.boss) {
+                    const dx = bullet.x - this.boss.x;
+                    const dy = bullet.y - this.boss.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 40) {
+                        this.bullets.splice(i, 1);
+                        this.sound.bossHit();
+                        if (this.boss.hit(bullet.damage || 1)) {
+                            this.player.score += this.boss.points;
+                            this.boss = null;
+                            this.completeGame();
+                        }
+                        continue;
+                    }
+                }
+                
+                for (let j = this.enemies.length - 1; j >= 0; j--) {
+                    const enemy = this.enemies[j];
+                    const dx = bullet.x - enemy.x;
+                    const dy = bullet.y - enemy.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < 18) {
+                        this.bullets.splice(i, 1);
+                        if (enemy.hit(bullet.damage || 1)) {
+                            this.player.score += enemy.points;
+                            this.enemies.splice(j, 1);
+                            this.sound.enemyHit();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            if (bullet.isEnemy) {
+                const dx = bullet.x - this.player.x;
+                const dy = bullet.y - this.player.y;
+                if (Math.sqrt(dx * dx + dy * dy) < 2.2) {
+                    this.bullets.splice(i, 1);
+                    if (this.player.hit() && this.player.lives <= 0) this.endGame();
+                }
+            }
+        }
+
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
+            const dx = enemy.x - this.player.x;
+            const dy = enemy.y - this.player.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 14) {
+                this.enemies.splice(i, 1);
+                if (this.player.hit() && this.player.lives <= 0) this.endGame();
+            }
+        }
+        
+        if (this.boss) {
+            const dx = this.boss.x - this.player.x;
+            const dy = this.boss.y - this.player.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 28) {
+                if (this.player.hit() && this.player.lives <= 0) this.endGame();
+            }
+        }
+    }
+
+    endGame() {
+        this.gameRunning = false;
+        this.gameOver = true;
+        document.getElementById('finalScore').textContent = `Счёт: ${this.player.score}`;
+        document.getElementById('gameOver').classList.remove('hidden');
+        document.querySelector('#gameOver h2').textContent = 'Игра окончена!';
+        this.sound.playerDeath();
+        
+        if (this.sound.bgmElement) {
+            this.sound.bgmElement.pause();
+        }
+    }
+
+    drawUI() {
+        this.bombIconPositions = [];
+
+        const UI = {
+            panelY: 0,
+            panelHeight: 600,
+
+            lives: {
+                x: 30,
+                y: 45,
+                gap: 8,
+                size: 20
+            },
+
+            score: {
+                x: 370,
+                y: 50,
+                size: 14,
+                color: '#d9d9d9'
+            },
+
+            wave: {
+                x: 370,
+                y: 70,
+                size: 12,
+                color: '#d9d9d9'
+            },
+
+            bombs: this.isMobile ? {
+                startX: 370,
+                startY: 270,
+                gap: 8,
+                size: 24
+            } : {
+                startX: 140,
+                startY: 540,
+                gap: 15,
+                size: 30
+            }
+        };
+
+        const ctx = this.ctx;
+        ctx.save();
+
+        if (this.uiPanel && this.uiPanel.complete && this.uiPanel.naturalWidth > 0) {
+            ctx.drawImage(this.uiPanel, 0, UI.panelY, 400, UI.panelHeight);
+        } else {
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.8)';
+            ctx.fillRect(0, UI.panelY, 400, UI.panelHeight);
+            ctx.strokeStyle = '#00ffcc';
+            ctx.strokeRect(0, UI.panelY, 400, UI.panelHeight);
+        }
+
+        const lv = UI.lives;
+        for (let i = 0; i < 2; i++) {
+            const x = lv.x + i * (lv.size + lv.gap);
+            const y = UI.panelY + lv.y;
+            const img = i < this.player.lives ? this.heartFull : this.heartEmpty;
+            if (img && img.complete && img.naturalWidth > 0) {
+                ctx.drawImage(img, x, y, lv.size, lv.size);
+            } else {
+                ctx.fillStyle = i < this.player.lives ? '#ff3366' : '#444';
+                ctx.beginPath();
+                ctx.arc(x + 10, y + 10, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.font = `${UI.score.size}px "Unbounded", "Unbounded Medium", Arial`;
+        ctx.fillStyle = UI.score.color;
+        ctx.textAlign = 'right';
+        ctx.fillText(`${this.player.score}`, UI.score.x, UI.panelY + UI.score.y);
+
+        ctx.font = `${UI.wave.size}px "Unbounded", "Unbounded Medium", Arial`;
+        ctx.fillStyle = UI.wave.color;
+        ctx.fillText(`Волна ${this.wave}`, UI.wave.x, UI.panelY + UI.wave.y);
+        ctx.textAlign = 'left';
+
+        const bv = UI.bombs;
+        if (this.isMobile) {
+            for (let i = 0; i < 3; i++) {
+                const x = bv.startX;
+                const y = bv.startY + i * (bv.size + bv.gap);
+                const img = i < this.player.bombs ? this.bombFull : this.bombEmpty;
+                
+                this.bombIconPositions.push({ x, y, size: bv.size, index: i });
+                
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, x, y, bv.size, bv.size);
+                } else {
+                    ctx.fillStyle = i < this.player.bombs ? '#ffaa00' : '#555';
+                    ctx.beginPath();
+                    ctx.arc(x + bv.size/2, y + bv.size/2, bv.size/2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        } else {
+            for (let i = 0; i < 3; i++) {
+                const x = bv.startX + i * (bv.size + bv.gap);
+                const y = bv.startY;
+                const img = i < this.player.bombs ? this.bombFull : this.bombEmpty;
+                
+                this.bombIconPositions.push({ x, y, size: bv.size, index: i });
+                
+                if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.drawImage(img, x, y, bv.size, bv.size);
+                } else {
+                    ctx.fillStyle = i < this.player.bombs ? '#ffaa00' : '#555';
+                    ctx.beginPath();
+                    ctx.arc(x + bv.size/2, y + bv.size/2, bv.size/2, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+
+        ctx.restore();
+    }
+
+    draw() {
+        if (this.bgImage.complete && this.bgImage.naturalWidth > 0) {
+            const h = this.canvas.height;
+            this.ctx.drawImage(this.bgImage, 0, this.bgY, this.canvas.width, h);
+            this.ctx.drawImage(this.bgImage, 0, this.bgY - h, this.canvas.width, h);
+        } else {
+            this.ctx.fillStyle = '#0a0a1a';
+            this.ctx.fillRect(0, 0, 400, 600);
+        }
+
+        this.enemies.forEach(e => e.draw(this.ctx));
+        if (this.boss) this.boss.draw(this.ctx);
+        
+        this.bullets.forEach(b => {
+            if (!b.isEnemy) b.draw(this.ctx);
+        });
+        
+        this.player.draw(this.ctx);
+        
+        this.bullets.forEach(b => {
+            if (b.isEnemy) b.draw(this.ctx);
+        });
+        
+        this.drawUI();
+
+        if (this.countdown > 0 && this.countdownText) {
+            this.ctx.save();
+
+this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+this.ctx.fillRect(0, 0, 400, 600);
+
+this.ctx.font = '700 110px "Unbounded", sans-serif';
+this.ctx.textAlign = 'center';
+this.ctx.textBaseline = 'middle';
+
+this.ctx.fillStyle = '#d9d9d9';
+
+this.ctx.shadowBlur = 20;
+this.ctx.shadowColor = '#ff0023';
+
+this.ctx.fillText(this.countdownText, 200, 300);
+
+this.ctx.restore();
+        }
+    }
+
+    gameLoop(timestamp) {
+        if (this.lastTime === 0) this.lastTime = timestamp;
+        let delta = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+        if (delta > 1000) delta = 1000;
+
+        this.accumulator += delta;
+        while (this.accumulator >= this.fixedDelta) {
+            this.update();
+            this.accumulator -= this.fixedDelta;
+        }
+
+        this.draw();
+        requestAnimationFrame((nextTimestamp) => this.gameLoop(nextTimestamp));
+    }
+}
+
+document.addEventListener('visibilitychange', async () => {
+
+    if (!document.hidden) {
+
+        try {
+
+            const bgm = document.getElementById('bgMusic');
+
+            if (
+                window.game?.sound?.ctx &&
+                window.game.sound.ctx.state === 'suspended'
+            ) {
+                await window.game.sound.ctx.resume();
+            }
+
+            if (
+                bgm &&
+                window.game?.gameStarted &&
+                bgm.paused
+            ) {
+                await bgm.play();
+            }
+
+        } catch (e) {
+
+            console.log('Музыка ждёт взаимодействия пользователя');
+        }
+
+    } else {
+
+        if (window.game?.sound) {
+            window.game.sound.pauseAll();
+        }
+    }
+});
+
+
+
+window.addEventListener('DOMContentLoaded', () => {
+    window.game = new Game();
+});
+
+// ==============================
+// TILDA POPUP CLOSE SUPPORT
+// ==============================
+
+document.addEventListener('click', (e) => {
+
+    // кнопка закрытия попапа Tilda
+    const closeBtn = e.target.closest('.t-popup__close');
+
+    if (closeBtn) {
+
+        const bgm = document.getElementById('bgMusic');
+
+        if (bgm) {
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+
+        if (window.game?.sound) {
+            window.game.sound.pauseAll();
+        }
+
+        if (window.game) {
+            window.game.gameRunning = false;
+        }
+    }
+});
+
+// если popup скрыли программно
+const observer = new MutationObserver(() => {
+
+    const popup = document.querySelector('.t-popup');
+
+    if (!popup) return;
+
+    const isHidden =
+        popup.style.display === 'none' ||
+        popup.classList.contains('t-popup_hidden');
+
+    if (isHidden) {
+
+        const bgm = document.getElementById('bgMusic');
+
+        if (bgm) {
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+
+        if (window.game?.sound) {
+            window.game.sound.pauseAll();
+        }
+    }
+});
+
+observer.observe(document.body, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+});
+
+
+// =====================================
+// RECEIVE MESSAGE FROM TILDA POPUP
+// =====================================
+
+window.addEventListener('message', async (event) => {
+
+    if (event.data === 'pauseMusic') {
+
+        const bgm = document.getElementById('bgMusic');
+
+        if (bgm) {
+
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+
+        if (window.game?.sound) {
+
+            window.game.sound.pauseAll();
+        }
+
+        if (window.game) {
+
+            window.game.gameRunning = false;
+        }
+    }
+});
