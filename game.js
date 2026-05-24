@@ -688,87 +688,614 @@ hit(damage = 1) {
 // ---------- Класс босса ----------
 class Boss {
     constructor(x, y, game) {
+
+        this.modules = [
+    {
+        x:-70,
+        y:20,
+        hp:30,
+        side:'left'
+    },
+
+    {
+        x:70,
+        y:20,
+        hp:30,
+        side:'right'
+    }
+];
         this.x = x;
         this.y = y;
         this.game = game;
-
+        this.maxHealth = 250;           // больше здоровья
+        this.health = this.maxHealth;
         this.phase = 1;
         this.timer = 0;
+        this.entered = false;
+        this.targetY = 80;
+        this.points = 10000;
+        this.xDirection = 1;
+        this.xSpeed = 3;
     }
 
     update() {
 
-        this.timer++;
+        for (const m of this.modules) {
 
-        // =========================
-        // PHASE 1
-        // =========================
-        if (this.phase === 1) {
+    if (m.hp <= 0) continue;
 
-            if (this.timer % 70 === 0) {
+    if (this.phase >= 2 && this.timer % 90 === 0) {
 
-                const a = Math.atan2(
-                    this.game.player.y - this.y,
-                    this.game.player.x - this.x
-                );
+        const angle = Math.atan2(
+            this.game.player.y - (this.y + m.y),
+            this.game.player.x - (this.x + m.x)
+        );
 
-                const s = 3.2; // diff.bulletSpeed можно оставить если есть
+        const bullet = new Bullet(
+            this.x + m.x,
+            this.y + m.y,
+            angle,
+            4,
+            true
+        );
 
-                this.game.bullets.push(
-                    new Bullet(this.x, this.y, a, s, true)
-                );
-            }
-        }
+        bullet.width = 14;
+        bullet.height = 14;
 
-        // =========================
-        // PHASE 2
-        // =========================
-        if (this.phase === 2) {
-
-            if (this.timer % 50 === 0) {
-
-                const base = Math.atan2(
-                    this.game.player.y - this.y,
-                    this.game.player.x - this.x
-                );
-
-                const s = 4.0;
-
-                for (let i = -1; i <= 1; i++) {
-
-                    this.game.bullets.push(
-                        new Bullet(this.x, this.y, base + i * 0.12, s, true)
-                    );
-                }
-            }
-        }
-
-        // =========================
-        // PHASE 3
-        // =========================
-        if (this.phase === 3) {
-
-            if (this.timer % 40 === 0) {
-
-                for (let i = 0; i < 4; i++) {
-
-                    const a = (Math.PI * 2 / 4) * i + this.timer * 0.05;
-
-                    this.game.bullets.push(
-                        new Bullet(this.x, this.y, a, 5.0, true)
-                    );
-                }
-            }
-        }
-    }
-
-    draw(ctx) {
-        ctx.fillStyle = "#ff0033";
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 40, 0, Math.PI * 2);
-        ctx.fill();
+        this.game.bullets.push(bullet);
     }
 }
+    this.timer++;
+
+    // Вход босса
+    if (!this.entered) {
+        this.y += (this.targetY - this.y) * 0.03;
+
+        if (Math.abs(this.y - this.targetY) < 1) {
+            this.y = this.targetY;
+            this.entered = true;
+            this.timer = 0;
+            this.game.sound.bossAppear();
+        }
+
+        return;
+    }
+
+    // Фазы
+    const hp = this.health / this.maxHealth;
+    const newPhase = hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
+
+    if (newPhase !== this.phase) {
+        this.phase = newPhase;
+        this.timer = 0;
+        this.game.sound.bossPhaseChange();
+    }
+
+    // Горизонтальное движение
+    this.y = this.targetY;
+
+    this.x += this.xSpeed * this.xDirection;
+
+    if (this.x >= 340) {
+        this.x = 340;
+        this.xDirection = -1;
+    } else if (this.x <= 60) {
+        this.x = 60;
+        this.xDirection = 1;
+    }
+
+if (this.phase === 1) {
+
+    if (this.timer % 45 === 0) {
+
+        const angle = Math.atan2(
+            this.game.player.y - this.y,
+            this.game.player.x - this.x
+        );
+
+        for (let i = -2; i <= 2; i++) {
+
+            const bullet = new Bullet(
+                this.x,
+                this.y,
+                angle + i * 0.08,
+                7,
+                true
+            );
+
+            bullet.width = 10;
+            bullet.height = 24;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+
+    if (this.timer % 90 === 0) {
+
+        for (let i = 0; i < 2; i++) {
+
+            const side = i === 0 ? 40 : 360;
+
+            const bullet = new Bullet(
+                side,
+                0,
+                Math.PI / 2,
+                8,
+                true
+            );
+
+            bullet.width = 16;
+            bullet.height = 32;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+}
+
+
+
+if (this.phase === 2) {
+
+    if (this.timer % 10 === 0) {
+
+        const base =
+            this.timer * 0.12;
+
+        for (let i = 0; i < 2; i++) {
+
+            const bullet = new Bullet(
+                this.x,
+                this.y,
+                base + Math.PI * i,
+                5,
+                true
+            );
+
+            bullet.width = 8;
+            bullet.height = 8;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+
+    if (this.timer % 75 === 0) {
+
+        const angle = Math.atan2(
+            this.game.player.y - this.y,
+            this.game.player.x - this.x
+        );
+
+        const sniper = new Bullet(
+            this.x,
+            this.y,
+            angle,
+            10,
+            true
+        );
+
+        sniper.width = 14;
+        sniper.height = 34;
+
+        this.game.bullets.push(sniper);
+    }
+}
+
+if (this.phase === 3) {
+
+    if (this.timer % 6 === 0) {
+
+        const base =
+            this.timer * 0.18;
+
+        for (let i = 0; i < 2; i++) {
+
+            const bullet = new Bullet(
+                this.x,
+                this.y,
+                base + Math.PI * i,
+                6,
+                true
+            );
+
+            bullet.width = 9;
+            bullet.height = 9;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+
+    if (this.timer % 55 === 0) {
+
+        const angle = Math.atan2(
+            this.game.player.y - this.y,
+            this.game.player.x - this.x
+        );
+
+        for (let i = -1; i <= 1; i++) {
+
+            const bullet = new Bullet(
+                this.x,
+                this.y,
+                angle + i * 0.06,
+                9,
+                true
+            );
+
+            bullet.width = 12;
+            bullet.height = 32;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+
+    if (this.timer % 120 === 0) {
+
+        for (let x = 60; x <= 340; x += 70) {
+
+            const bullet = new Bullet(
+                x,
+                -20,
+                Math.PI / 2,
+                7,
+                true
+            );
+
+            bullet.width = 14;
+            bullet.height = 40;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+}
+}
+
+    draw(ctx) {
+
+        for (const m of this.modules) {
+
+    if (m.hp <= 0) continue;
+
+    ctx.fillStyle = '#080808';
+
+    ctx.fillRect(
+        m.x - 18,
+        m.y - 18,
+        36,
+        36
+    );
+
+    ctx.strokeStyle = '#d9d9d9';
+
+    ctx.strokeRect(
+        m.x - 18,
+        m.y - 18,
+        36,
+        36
+    );
+
+    ctx.fillStyle = '#ff0023';
+
+    ctx.beginPath();
+
+    ctx.arc(
+        m.x,
+        m.y,
+        6,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+}
+
+    ctx.save();
+
+    const t = this.timer;
+
+    // =====================================
+    // MASSIVE BACK GLOW
+    // =====================================
+
+    const aura = ctx.createRadialGradient(
+        this.x,
+        this.y,
+        20,
+        this.x,
+        this.y,
+        140
+    );
+
+    aura.addColorStop(0, 'rgba(255,0,35,0.35)');
+    aura.addColorStop(1, 'rgba(255,0,35,0)');
+
+    ctx.fillStyle = aura;
+
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 140, 0, Math.PI * 2);
+    ctx.fill();
+
+    // =====================================
+    // ROTATING HALO
+    // =====================================
+
+    ctx.translate(this.x, this.y);
+
+    ctx.rotate(t * 0.01);
+
+    ctx.strokeStyle = 'rgba(255,80,100,0.4)';
+    ctx.lineWidth = 4;
+
+    for (let i = 0; i < 3; i++) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            0,
+            70 + i * 12,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.stroke();
+    }
+
+    ctx.rotate(-t * 0.01);
+
+    // =====================================
+    // MAIN BODY
+    // =====================================
+
+    const body = ctx.createLinearGradient(
+        -80,
+        -80,
+        80,
+        80
+    );
+
+    body.addColorStop(0, '#6b0f18');
+    body.addColorStop(0.35, '#ff0023');
+    body.addColorStop(1, '#140004');
+
+    ctx.fillStyle = body;
+
+    ctx.shadowBlur = 40;
+    ctx.shadowColor = '#ff0023';
+
+    // central armor
+    ctx.beginPath();
+
+    ctx.moveTo(0, -70);
+
+    ctx.lineTo(58, -40);
+    ctx.lineTo(72, 0);
+    ctx.lineTo(50, 60);
+
+    ctx.lineTo(0, 80);
+
+    ctx.lineTo(-50, 60);
+    ctx.lineTo(-72, 0);
+    ctx.lineTo(-58, -40);
+
+    ctx.closePath();
+    ctx.fill();
+
+    // =====================================
+    // SIDE CANNONS
+    // =====================================
+
+    ctx.fillStyle = '#252530';
+
+    for (let i = -1; i <= 1; i += 2) {
+
+        ctx.fillRect(
+            i * 70 - 12,
+            -16,
+            24,
+            64
+        );
+
+        ctx.fillStyle = '#ff0023';
+
+        ctx.beginPath();
+
+        ctx.arc(
+            i * 70,
+            48,
+            10,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+
+        ctx.fillStyle = '#252530';
+    }
+
+    // =====================================
+    // CENTRAL CORE
+    // =====================================
+
+    const core = ctx.createRadialGradient(
+        0,
+        -10,
+        2,
+        0,
+        0,
+        26
+    );
+
+    core.addColorStop(0, '#ffffff');
+    core.addColorStop(0.25, '#ffcccc');
+    core.addColorStop(1, '#ff0023');
+
+    ctx.fillStyle = core;
+
+    ctx.shadowBlur = 35;
+    ctx.shadowColor = '#ff3355';
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.fill();
+
+    // =====================================
+    // ARMOR LINES
+    // =====================================
+
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 2;
+
+    for (let i = -2; i <= 2; i++) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(i * 12, -50);
+        ctx.lineTo(i * 8, 60);
+
+        ctx.stroke();
+    }
+
+    // =====================================
+    // LOWER TENTACLE ENGINES
+    // =====================================
+
+    ctx.strokeStyle = '#ff0023';
+    ctx.lineWidth = 5;
+
+    for (let i = 0; i < 6; i++) {
+
+        const angle =
+            Math.PI / 2 +
+            (i - 2.5) * 0.24;
+
+        const len =
+            70 +
+            Math.sin(t * 0.08 + i) * 18;
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            Math.cos(angle) * 40,
+            Math.sin(angle) * 40
+        );
+
+        ctx.lineTo(
+            Math.cos(angle) * len,
+            Math.sin(angle) * len
+        );
+
+        ctx.stroke();
+    }
+
+    // =====================================
+    // PHASE EFFECTS
+    // =====================================
+
+    if (this.phase >= 2) {
+
+        ctx.strokeStyle = '#ffffff55';
+
+        ctx.beginPath();
+        ctx.arc(
+            0,
+            0,
+            42 + Math.sin(t * 0.2) * 4,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.stroke();
+    }
+
+    if (this.phase >= 3) {
+
+        for (let i = 0; i < 8; i++) {
+
+            const a =
+                t * 0.04 +
+                (Math.PI * 2 / 8) * i;
+
+            ctx.fillStyle = '#ff3355';
+
+            ctx.beginPath();
+
+            ctx.arc(
+                Math.cos(a) * 90,
+                Math.sin(a) * 90,
+                5,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+        }
+    }
+
+    // =====================================
+    // RESET TRANSFORM
+    // =====================================
+
+    ctx.setTransform(1,0,0,1,0,0);
+
+    // =====================================
+    // BOSS HP BAR
+    // =====================================
+
+    const bw = 240;
+    const bh = 12;
+    const bx = 80;
+    const by = 30;
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(bx, by, bw, bh);
+
+    const hp = ctx.createLinearGradient(
+        bx,
+        0,
+        bx + bw,
+        0
+    );
+
+    hp.addColorStop(0, '#ff0000');
+    hp.addColorStop(0.5, '#ff6600');
+    hp.addColorStop(1, '#ffff00');
+
+    ctx.fillStyle = hp;
+
+    ctx.fillRect(
+        bx,
+        by,
+        bw * (this.health / this.maxHealth),
+        bh
+    );
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.restore();
+}
+    hit(damage = 1) {
+    this.health -= damage;
+    return this.health <= 0;
+}
+}
+
+class MidBoss extends Boss {
+
+    constructor(x,y,game){
+
+        super(x,y,game);
+
+        this.maxHealth = 120;
+        this.health = 120;
+
+        this.points = 5000;
+
+        this.targetY = 120;
+    }
+}
+
 // ---------- Главный класс игры ----------
 class Game {
     constructor() {
@@ -847,217 +1374,39 @@ defineWavePatterns() {
 
     this.patterns = {
 
-        mirrorNeedle: {
+        // =====================================
+        // FAST SNIPER
+        // мало пуль, очень быстро
+        // =====================================
 
-    health: 7,
-    points: 500,
+        sniperNeedle: {
 
-    update: (enemy) => {
-
-        enemy.y += 0.4;
-
-        if (enemy.timer % 24 === 0) {
-
-            const dir =
-                enemy.x < 200 ? 1 : -1;
-
-            for (let i = 0; i < 5; i++) {
-
-                const bullet = new Bullet(
-                    enemy.x,
-                    enemy.y,
-                    Math.PI/2 + dir * i * 0.12,
-                    3,
-                    true
-                );
-
-                bullet.width = 8;
-                bullet.height = 8;
-
-                this.bullets.push(bullet);
-            }
-        }
-    }
-},
-
-        eliteCoffin: {
-
-    health: 60,
-    points: 4000,
-
-    elite: true,
-
-    update: (enemy) => {
-
-        if (!enemy.locked) {
-
-            enemy.y += 0.5;
-
-            if (enemy.y >= 120) {
-
-                enemy.y = 120;
-
-                enemy.locked = true;
-            }
-        }
-
-        if (enemy.timer % 6 === 0) {
-
-            const base =
-                enemy.timer * 0.05;
-
-            for (let i = 0; i < 3; i++) {
-
-                const bullet = new Bullet(
-                    enemy.x,
-                    enemy.y,
-                    base + i * (Math.PI*2/3),
-                    2.6,
-                    true
-                );
-
-                bullet.width = 10;
-                bullet.height = 10;
-
-                this.bullets.push(bullet);
-            }
-        }
-
-        if (enemy.timer % 90 === 0) {
-
-            const angle = Math.atan2(
-                this.player.y - enemy.y,
-                this.player.x - enemy.x
-            );
-
-            const bullet = new Bullet(
-                enemy.x,
-                enemy.y,
-                angle,
-                5,
-                true
-            );
-
-            bullet.width = 18;
-            bullet.height = 18;
-
-            this.bullets.push(bullet);
-        }
-    }
-},
-
-        orbitDisc: {
-
-    health: 10,
-    points: 700,
-
-    update: (enemy) => {
-
-        if (!enemy.init) {
-
-            enemy.init = true;
-
-            enemy.centerX = enemy.x;
-            enemy.centerY = enemy.y;
-
-            enemy.radius = 90;
-        }
-
-        const a = enemy.timer * 0.03;
-
-        enemy.x =
-            enemy.centerX +
-            Math.cos(a) * enemy.radius;
-
-        enemy.y =
-            enemy.centerY +
-            Math.sin(a) * 40;
-
-        if (enemy.timer % 35 === 0) {
-
-            for (let i = 0; i < 12; i++) {
-
-                const bullet = new Bullet(
-                    enemy.x,
-                    enemy.y,
-                    (Math.PI*2/12)*i,
-                    2,
-                    true
-                );
-
-                bullet.width = 7;
-                bullet.height = 7;
-
-                this.bullets.push(bullet);
-            }
-        }
-    }
-},
-
-        spiralFlower: {
-
-    health: 16,
-    points: 1200,
-
-    update: (enemy) => {
-
-        enemy.y += 0.15;
-
-        if (enemy.timer % 3 === 0) {
-
-            const base =
-                enemy.timer * 0.09;
-
-            for (let i = 0; i < 2; i++) {
-
-                const bullet = new Bullet(
-                    enemy.x,
-                    enemy.y,
-                    base + Math.PI * i,
-                    2.4,
-                    true
-                );
-
-                bullet.width = 8;
-                bullet.height = 8;
-                bullet.color = '#ff0023';
-
-                this.bullets.push(bullet);
-            }
-        }
-    }
-},
-
-        centerBloom: {
-
-            health: 12,
-            points: 800,
+            health: 6,
+            points: 500,
 
             update: (enemy) => {
 
-                if (!enemy.locked) {
-                    enemy.locked = true;
-                    enemy.y = 120;
-                }
+                enemy.y += 1.4;
 
-                if (enemy.timer % 40 === 0) {
+                if (enemy.timer % 48 === 0) {
 
-                    for (let i = 0; i < 24; i++) {
+                    const angle = Math.atan2(
+                        this.player.y - enemy.y,
+                        this.player.x - enemy.x
+                    );
 
-                        const angle =
-                            (Math.PI * 2 / 24) * i;
+                    for (let i = -1; i <= 1; i++) {
 
                         const bullet = new Bullet(
                             enemy.x,
                             enemy.y,
-                            angle,
-                            2.2,
+                            angle + i * 0.04,
+                            7,
                             true
                         );
 
-                        bullet.width = 8;
-                        bullet.height = 8;
-                        bullet.color = '#ff3355';
+                        bullet.width = 7;
+                        bullet.height = 18;
 
                         this.bullets.push(bullet);
                     }
@@ -1065,36 +1414,189 @@ defineWavePatterns() {
             }
         },
 
-        streamCenter: {
+        // =====================================
+        // SWEEPER
+        // режет экран быстрым веером
+        // =====================================
 
-            health: 8,
-            points: 500,
+        sweepDisc: {
+
+            health: 12,
+            points: 900,
 
             update: (enemy) => {
 
-                enemy.y += 0.45;
+                enemy.y += 0.8;
+                enemy.x += Math.sin(enemy.timer * 0.03) * 2;
 
-                if (enemy.timer % 8 === 0) {
+                if (enemy.timer % 32 === 0) {
+
+                    const base =
+                        Math.PI / 2 +
+                        Math.sin(enemy.timer * 0.05) * 0.7;
 
                     for (let i = -2; i <= 2; i++) {
 
                         const bullet = new Bullet(
                             enemy.x,
                             enemy.y,
-                            Math.PI / 2 + i * 0.1,
-                            3,
+                            base + i * 0.09,
+                            6,
                             true
                         );
 
                         bullet.width = 9;
-                        bullet.height = 9;
+                        bullet.height = 20;
 
                         this.bullets.push(bullet);
                     }
                 }
             }
-        }
+        },
 
+        // =====================================
+        // INTERCEPTOR
+        // перехватывает позицию игрока
+        // =====================================
+
+        interceptor: {
+
+            health: 18,
+            points: 1400,
+
+            update: (enemy) => {
+
+                enemy.y += 0.5;
+
+                if (enemy.timer % 70 === 0) {
+
+                    const px = this.player.x;
+                    const py = this.player.y;
+
+                    const dx = px - enemy.x;
+                    const dy = py - enemy.y;
+
+                    const angle = Math.atan2(dy, dx);
+
+                    for (let i = -1; i <= 1; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            angle + i * 0.12,
+                            8,
+                            true
+                        );
+
+                        bullet.width = 10;
+                        bullet.height = 22;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        },
+
+        // =====================================
+        // CROSS LANCER
+        // создаёт кресты скорости
+        // =====================================
+
+        crossLancer: {
+
+            health: 20,
+            points: 1800,
+
+            update: (enemy) => {
+
+                enemy.y += 0.3;
+
+                if (enemy.timer % 40 === 0) {
+
+                    const dirs = [
+                        0,
+                        Math.PI / 2,
+                        Math.PI,
+                        Math.PI * 1.5
+                    ];
+
+                    dirs.forEach(a => {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            a,
+                            7,
+                            true
+                        );
+
+                        bullet.width = 8;
+                        bullet.height = 24;
+
+                        this.bullets.push(bullet);
+                    });
+                }
+            }
+        },
+
+        // =====================================
+        // PHASE FLOWER
+        // Dodonpachi-подобный контроль пространства
+        // =====================================
+
+        phaseFlower: {
+
+            health: 28,
+            points: 2400,
+
+            update: (enemy) => {
+
+                enemy.y += 0.25;
+
+                if (enemy.timer % 14 === 0) {
+
+                    const base =
+                        enemy.timer * 0.18;
+
+                    for (let i = 0; i < 2; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            base + Math.PI * i,
+                            5.5,
+                            true
+                        );
+
+                        bullet.width = 10;
+                        bullet.height = 10;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+
+                if (enemy.timer % 90 === 0) {
+
+                    const angle = Math.atan2(
+                        this.player.y - enemy.y,
+                        this.player.x - enemy.x
+                    );
+
+                    const sniper = new Bullet(
+                        enemy.x,
+                        enemy.y,
+                        angle,
+                        9,
+                        true
+                    );
+
+                    sniper.width = 12;
+                    sniper.height = 28;
+
+                    this.bullets.push(sniper);
+                }
+            }
+        }
     };
 }
 
@@ -1107,315 +1609,166 @@ defineWavePatterns() {
 buildWave(waveNumber) {
 
     const queue = [];
-
     let t = 0;
 
     // =====================================
     // WAVE 1
-    // BASIC CENTER READING
+    // FAST AIM
     // =====================================
 
     if (waveNumber === 1) {
 
         queue.push({
-            type:'streamCenter',
+            type:'sniperNeedle',
             enemyType:'needle',
-            x:200,
-            y:-40,
-            delay:t
-        });
-
-        t += 80;
-
-
-        queue.push({
-            type:'centerBloom',
-            enemyType:'flower',
-            x:200,
-            y:90,
-            delay:t
-        });
-
-        t += 180;
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:90,
-            y:-20,
-            delay:t
-        });
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:310,
-            y:-20,
-            delay:t
-        });
-
-        t += 240;
-    }
-
-    // =====================================
-    // WAVE 2
-    // MIRROR PRESSURE
-    // =====================================
-
-    else if (waveNumber === 2) {
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:100,
-            y:-20,
-            delay:t
-        });
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:300,
-            y:-20,
-            delay:t
-        });
-
-        t += 120;
-
-
-        queue.push({
-            type:'orbitDisc',
-            enemyType:'disc',
-            x:200,
-            y:140,
-            delay:t
-        });
-
-        t += 220;
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:80,
-            y:-20,
-            delay:t
-        });
-
-        t += 40;
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:320,
-            y:-20,
-            delay:t
-        });
-
-        t += 180;
-
-        queue.push({
-            type:'centerBloom',
-            enemyType:'flower',
-            x:200,
-            y:110,
-            delay:t
-        });
-
-        t += 240;
-    }
-
-    // =====================================
-    // WAVE 3
-    // MEMORY + SPIRALS
-    // =====================================
-
-    else if (waveNumber === 3) {
-
-        queue.push({
-            type:'spiralFlower',
-            enemyType:'flower',
             x:120,
-            y:80,
-            delay:t
-        });
-
-        t += 90;
-
-        queue.push({
-            type:'spiralFlower',
-            enemyType:'flower',
-            x:280,
-            y:80,
-            delay:t
-        });
-
-        t += 150;
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:70,
             y:-20,
-            delay:t
-        });
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:330,
-            y:-20,
-            delay:t
-        });
-
-        t += 150;
-
-        queue.push({
-            type:'streamCenter',
-            enemyType:'needle',
-            x:200,
-            y:-20,
-            delay:t
-        });
-
-        t += 220;
-
-        queue.push({
-            type:'centerBloom',
-            enemyType:'flower',
-            x:200,
-            y:100,
-            delay:t
-        });
-
-        t += 240;
-    }
-
-    // =====================================
-    // WAVE 4
-    // ELITE CONTROL
-    // =====================================
-
-    else if (waveNumber === 4) {
-
-
-        queue.push({
-            type:'orbitDisc',
-            enemyType:'disc',
-            x:140,
-            y:130,
-            delay:t
-        });
-
-        t += 80;
-
-        queue.push({
-            type:'orbitDisc',
-            enemyType:'disc',
-            x:260,
-            y:130,
-            delay:t
-        });
-
-        t += 220;
-
-        queue.push({
-            type:'eliteCoffin',
-            enemyType:'coffin',
-            x:200,
-            y:-80,
-            delay:t
-        });
-    }
-
-    // =====================================
-    // WAVE 5
-    // FINAL PRESSURE BEFORE MIDBOSS
-    // =====================================
-
-    else if (waveNumber === 5) {
-
-        queue.push({
-            type:'centerBloom',
-            enemyType:'flower',
-            x:200,
-            y:100,
-            delay:t
-        });
-
-        t += 120;
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:70,
-            y:-20,
-            delay:t
-        });
-
-        queue.push({
-            type:'mirrorNeedle',
-            enemyType:'needle',
-            x:330,
-            y:-20,
-            delay:t
-        });
-
-        t += 120;
-
-        queue.push({
-            type:'orbitDisc',
-            enemyType:'disc',
-            x:200,
-            y:140,
-            delay:t
-        });
-
-        t += 160;
-
-        queue.push({
-            type:'spiralFlower',
-            enemyType:'flower',
-            x:120,
-            y:70,
             delay:t
         });
 
         t += 50;
 
         queue.push({
-            type:'spiralFlower',
-            enemyType:'flower',
+            type:'sniperNeedle',
+            enemyType:'needle',
             x:280,
-            y:70,
+            y:-20,
+            delay:t
+        });
+
+        t += 120;
+
+        queue.push({
+            type:'sweepDisc',
+            enemyType:'disc',
+            x:200,
+            y:-40,
+            delay:t
+        });
+    }
+
+    // =====================================
+    // WAVE 2
+    // SWEEP CONTROL
+    // =====================================
+
+    else if (waveNumber === 2) {
+
+        for (let i = 0; i < 3; i++) {
+
+            queue.push({
+                type:'sweepDisc',
+                enemyType:'disc',
+                x:100 + i * 100,
+                y:-40,
+                delay:t
+            });
+
+            t += 80;
+        }
+
+        t += 120;
+
+        queue.push({
+            type:'interceptor',
+            enemyType:'crab',
+            x:200,
+            y:-40,
+            delay:t
+        });
+    }
+
+    // =====================================
+    // WAVE 3
+    // CROSS PRESSURE
+    // =====================================
+
+    else if (waveNumber === 3) {
+
+        queue.push({
+            type:'crossLancer',
+            enemyType:'crab',
+            x:100,
+            y:80,
+            delay:t
+        });
+
+        queue.push({
+            type:'crossLancer',
+            enemyType:'crab',
+            x:300,
+            y:80,
             delay:t
         });
 
         t += 180;
 
         queue.push({
-            type:'eliteCoffin',
-            enemyType:'coffin',
-            x:200,
-            y:-80,
-            delay:t
-        });
-
-        t += 240;
-
-        queue.push({
-            type:'streamCenter',
+            type:'sniperNeedle',
             enemyType:'needle',
-            x:120,
+            x:200,
             y:-20,
             delay:t
         });
 
-        t += 40;
+        t += 90;
 
         queue.push({
-            type:'streamCenter',
-            enemyType:'needle',
+            type:'interceptor',
+            enemyType:'coffin',
+            x:200,
+            y:-40,
+            delay:t
+        });
+    }
+
+    // =====================================
+    // WAVE 4
+    // DODONPACHI STYLE
+    // =====================================
+
+    else if (waveNumber === 4) {
+
+        queue.push({
+            type:'phaseFlower',
+            enemyType:'flower',
+            x:120,
+            y:60,
+            delay:t
+        });
+
+        t += 90;
+
+        queue.push({
+            type:'phaseFlower',
+            enemyType:'flower',
             x:280,
+            y:60,
+            delay:t
+        });
+
+        t += 140;
+
+        queue.push({
+            type:'crossLancer',
+            enemyType:'crab',
+            x:200,
+            y:80,
+            delay:t
+        });
+    }
+
+    // =====================================
+    // WAVE 5
+    // PRE-MIDBOSS
+    // =====================================
+
+    else if (waveNumber === 5) {
+
+        queue.push({
+            type:'interceptor',
+            enemyType:'coffin',
+            x:120,
             y:-20,
             delay:t
         });
@@ -1423,14 +1776,40 @@ buildWave(waveNumber) {
         t += 60;
 
         queue.push({
-            type:'streamCenter',
-            enemyType:'needle',
-            x:200,
+            type:'interceptor',
+            enemyType:'coffin',
+            x:280,
             y:-20,
             delay:t
         });
 
-        t += 260;
+        t += 120;
+
+        queue.push({
+            type:'phaseFlower',
+            enemyType:'flower',
+            x:200,
+            y:60,
+            delay:t
+        });
+
+        t += 140;
+
+        queue.push({
+            type:'crossLancer',
+            enemyType:'crab',
+            x:90,
+            y:80,
+            delay:t
+        });
+
+        queue.push({
+            type:'crossLancer',
+            enemyType:'crab',
+            x:310,
+            y:80,
+            delay:t
+        });
     }
 
     return queue;
