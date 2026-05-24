@@ -786,68 +786,18 @@ class Boss {
 
 if (this.phase === 1) {
 
-    if (this.timer % 45 === 0) {
-
-        const angle = Math.atan2(
-            this.game.player.y - this.y,
-            this.game.player.x - this.x
-        );
-
-        for (let i = -2; i <= 2; i++) {
-
-            const bullet = new Bullet(
-                this.x,
-                this.y,
-                angle + i * 0.08,
-                7,
-                true
-            );
-
-            bullet.width = 10;
-            bullet.height = 24;
-
-            this.game.bullets.push(bullet);
-        }
-    }
-
-    if (this.timer % 90 === 0) {
-
-        for (let i = 0; i < 2; i++) {
-
-            const side = i === 0 ? 40 : 360;
-
-            const bullet = new Bullet(
-                side,
-                0,
-                Math.PI / 2,
-                8,
-                true
-            );
-
-            bullet.width = 16;
-            bullet.height = 32;
-
-            this.game.bullets.push(bullet);
-        }
-    }
-}
-
-
-
-if (this.phase === 2) {
-
-    if (this.timer % 10 === 0) {
+    if (this.timer % 18 === 0) {
 
         const base =
-            this.timer * 0.12;
+            this.timer * 0.05;
 
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 24; i++) {
 
             const bullet = new Bullet(
                 this.x,
                 this.y,
-                base + Math.PI * i,
-                5,
+                base + (Math.PI * 2 / 24) * i,
+                2,
                 true
             );
 
@@ -857,43 +807,22 @@ if (this.phase === 2) {
             this.game.bullets.push(bullet);
         }
     }
-
-    if (this.timer % 75 === 0) {
-
-        const angle = Math.atan2(
-            this.game.player.y - this.y,
-            this.game.player.x - this.x
-        );
-
-        const sniper = new Bullet(
-            this.x,
-            this.y,
-            angle,
-            10,
-            true
-        );
-
-        sniper.width = 14;
-        sniper.height = 34;
-
-        this.game.bullets.push(sniper);
-    }
 }
 
-if (this.phase === 3) {
+if (this.phase === 2) {
 
-    if (this.timer % 6 === 0) {
+    if (this.timer % 8 === 0) {
 
         const base =
-            this.timer * 0.18;
+            this.timer * 0.09;
 
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 6; i++) {
 
             const bullet = new Bullet(
                 this.x,
                 this.y,
-                base + Math.PI * i,
-                6,
+                base + i * (Math.PI * 2 / 6),
+                2.5,
                 true
             );
 
@@ -904,49 +833,71 @@ if (this.phase === 3) {
         }
     }
 
-    if (this.timer % 55 === 0) {
+    if (this.timer % 90 === 0) {
 
-        const angle = Math.atan2(
-            this.game.player.y - this.y,
-            this.game.player.x - this.x
-        );
-
-        for (let i = -1; i <= 1; i++) {
+        for (let i = -6; i <= 6; i++) {
 
             const bullet = new Bullet(
                 this.x,
                 this.y,
-                angle + i * 0.06,
-                9,
+                Math.PI / 2 + i * 0.06,
+                1.8,
                 true
             );
 
             bullet.width = 12;
-            bullet.height = 32;
-
-            this.game.bullets.push(bullet);
-        }
-    }
-
-    if (this.timer % 120 === 0) {
-
-        for (let x = 60; x <= 340; x += 70) {
-
-            const bullet = new Bullet(
-                x,
-                -20,
-                Math.PI / 2,
-                7,
-                true
-            );
-
-            bullet.width = 14;
-            bullet.height = 40;
+            bullet.height = 12;
 
             this.game.bullets.push(bullet);
         }
     }
 }
+
+if (this.phase === 3) {
+
+    if (this.timer % 5 === 0) {
+
+        const base =
+            this.timer * 0.12;
+
+        for (let i = 0; i < 8; i++) {
+
+            const bullet = new Bullet(
+                this.x,
+                this.y,
+                base + i * (Math.PI * 2 / 8),
+                2.8,
+                true
+            );
+
+            bullet.width = 8;
+            bullet.height = 8;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+
+    if (this.timer % 70 === 0) {
+
+        for (let x = 40; x <= 360; x += 40) {
+
+            const bullet = new Bullet(
+                x,
+                -20,
+                Math.PI / 2,
+                1.7,
+                true
+            );
+
+            bullet.width = 10;
+            bullet.height = 20;
+
+            this.game.bullets.push(bullet);
+        }
+    }
+}
+
+
 }
 
     draw(ctx) {
@@ -1375,196 +1326,28 @@ defineWavePatterns() {
     this.patterns = {
 
         // =====================================
-        // FAST SNIPER
-        // мало пуль, очень быстро
+        // LOTUS SPREAD
+        // огромный веер, но медленный
         // =====================================
 
-        sniperNeedle: {
+        lotusSpread: {
 
-            health: 6,
-            points: 500,
+            health: 10,
+            points: 600,
 
             update: (enemy) => {
 
-                enemy.y += 1.4;
+                enemy.y += 0.45;
 
-                if (enemy.timer % 48 === 0) {
+                if (enemy.timer % 55 === 0) {
 
-                    const angle = Math.atan2(
-                        this.player.y - enemy.y,
-                        this.player.x - enemy.x
-                    );
-
-                    for (let i = -1; i <= 1; i++) {
+                    for (let i = -8; i <= 8; i++) {
 
                         const bullet = new Bullet(
                             enemy.x,
                             enemy.y,
-                            angle + i * 0.04,
-                            7,
-                            true
-                        );
-
-                        bullet.width = 7;
-                        bullet.height = 18;
-
-                        this.bullets.push(bullet);
-                    }
-                }
-            }
-        },
-
-        // =====================================
-        // SWEEPER
-        // режет экран быстрым веером
-        // =====================================
-
-        sweepDisc: {
-
-            health: 12,
-            points: 900,
-
-            update: (enemy) => {
-
-                enemy.y += 0.8;
-                enemy.x += Math.sin(enemy.timer * 0.03) * 2;
-
-                if (enemy.timer % 32 === 0) {
-
-                    const base =
-                        Math.PI / 2 +
-                        Math.sin(enemy.timer * 0.05) * 0.7;
-
-                    for (let i = -2; i <= 2; i++) {
-
-                        const bullet = new Bullet(
-                            enemy.x,
-                            enemy.y,
-                            base + i * 0.09,
-                            6,
-                            true
-                        );
-
-                        bullet.width = 9;
-                        bullet.height = 20;
-
-                        this.bullets.push(bullet);
-                    }
-                }
-            }
-        },
-
-        // =====================================
-        // INTERCEPTOR
-        // перехватывает позицию игрока
-        // =====================================
-
-        interceptor: {
-
-            health: 18,
-            points: 1400,
-
-            update: (enemy) => {
-
-                enemy.y += 0.5;
-
-                if (enemy.timer % 70 === 0) {
-
-                    const px = this.player.x;
-                    const py = this.player.y;
-
-                    const dx = px - enemy.x;
-                    const dy = py - enemy.y;
-
-                    const angle = Math.atan2(dy, dx);
-
-                    for (let i = -1; i <= 1; i++) {
-
-                        const bullet = new Bullet(
-                            enemy.x,
-                            enemy.y,
-                            angle + i * 0.12,
-                            8,
-                            true
-                        );
-
-                        bullet.width = 10;
-                        bullet.height = 22;
-
-                        this.bullets.push(bullet);
-                    }
-                }
-            }
-        },
-
-        // =====================================
-        // CROSS LANCER
-        // создаёт кресты скорости
-        // =====================================
-
-        crossLancer: {
-
-            health: 20,
-            points: 1800,
-
-            update: (enemy) => {
-
-                enemy.y += 0.3;
-
-                if (enemy.timer % 40 === 0) {
-
-                    const dirs = [
-                        0,
-                        Math.PI / 2,
-                        Math.PI,
-                        Math.PI * 1.5
-                    ];
-
-                    dirs.forEach(a => {
-
-                        const bullet = new Bullet(
-                            enemy.x,
-                            enemy.y,
-                            a,
-                            7,
-                            true
-                        );
-
-                        bullet.width = 8;
-                        bullet.height = 24;
-
-                        this.bullets.push(bullet);
-                    });
-                }
-            }
-        },
-
-        // =====================================
-        // PHASE FLOWER
-        // Dodonpachi-подобный контроль пространства
-        // =====================================
-
-        phaseFlower: {
-
-            health: 28,
-            points: 2400,
-
-            update: (enemy) => {
-
-                enemy.y += 0.25;
-
-                if (enemy.timer % 14 === 0) {
-
-                    const base =
-                        enemy.timer * 0.18;
-
-                    for (let i = 0; i < 2; i++) {
-
-                        const bullet = new Bullet(
-                            enemy.x,
-                            enemy.y,
-                            base + Math.PI * i,
-                            5.5,
+                            Math.PI / 2 + i * 0.08,
+                            2.1,
                             true
                         );
 
@@ -1574,26 +1357,164 @@ defineWavePatterns() {
                         this.bullets.push(bullet);
                     }
                 }
+            }
+        },
 
-                if (enemy.timer % 90 === 0) {
+        // =====================================
+        // SPIRAL BLOOM
+        // визуально страшно, реально безопасно
+        // =====================================
 
-                    const angle = Math.atan2(
-                        this.player.y - enemy.y,
-                        this.player.x - enemy.x
-                    );
+        spiralBloom: {
 
-                    const sniper = new Bullet(
-                        enemy.x,
-                        enemy.y,
-                        angle,
-                        9,
-                        true
-                    );
+            health: 16,
+            points: 1000,
 
-                    sniper.width = 12;
-                    sniper.height = 28;
+            update: (enemy) => {
 
-                    this.bullets.push(sniper);
+                enemy.y += 0.25;
+
+                if (enemy.timer % 5 === 0) {
+
+                    const base =
+                        enemy.timer * 0.09;
+
+                    for (let i = 0; i < 4; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            base + i * (Math.PI / 2),
+                            2.4,
+                            true
+                        );
+
+                        bullet.width = 8;
+                        bullet.height = 8;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        },
+
+        // =====================================
+        // WATERFALL
+        // занавес из медленных пуль
+        // =====================================
+
+        waterfall: {
+
+            health: 12,
+            points: 800,
+
+            update: (enemy) => {
+
+                enemy.y += 0.15;
+
+                if (enemy.timer % 18 === 0) {
+
+                    for (let i = -4; i <= 4; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x + i * 12,
+                            enemy.y,
+                            Math.PI / 2,
+                            1.8,
+                            true
+                        );
+
+                        bullet.width = 9;
+                        bullet.height = 16;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        },
+
+        // =====================================
+        // MEMORY ROSE
+        // требует помнить форму паттерна
+        // =====================================
+
+        memoryRose: {
+
+            health: 22,
+            points: 1600,
+
+            update: (enemy) => {
+
+                enemy.y += 0.2;
+
+                if (enemy.timer % 40 === 0) {
+
+                    const base =
+                        enemy.timer * 0.03;
+
+                    for (let i = 0; i < 32; i++) {
+
+                        const bullet = new Bullet(
+                            enemy.x,
+                            enemy.y,
+                            base + (Math.PI * 2 / 32) * i,
+                            1.9,
+                            true
+                        );
+
+                        bullet.width = 7;
+                        bullet.height = 7;
+
+                        this.bullets.push(bullet);
+                    }
+                }
+            }
+        },
+
+        // =====================================
+        // DUAL STREAM
+        // потоковые уклонения
+        // =====================================
+
+        dualStream: {
+
+            health: 18,
+            points: 1400,
+
+            update: (enemy) => {
+
+                enemy.y += 0.35;
+
+                if (enemy.timer % 12 === 0) {
+
+                    for (let i = -2; i <= 2; i++) {
+
+                        const left = new Bullet(
+                            enemy.x - 20,
+                            enemy.y,
+                            Math.PI / 2 + i * 0.05,
+                            2.7,
+                            true
+                        );
+
+                        left.width = 8;
+                        left.height = 8;
+
+                        this.bullets.push(left);
+
+                        const right = new Bullet(
+                            enemy.x + 20,
+                            enemy.y,
+                            Math.PI / 2 - i * 0.05,
+                            2.7,
+                            true
+                        );
+
+                        right.width = 8;
+                        right.height = 8;
+
+                        this.bullets.push(right);
+                    }
                 }
             }
         }
@@ -1613,34 +1534,34 @@ buildWave(waveNumber) {
 
     // =====================================
     // WAVE 1
-    // FAST AIM
+    // VISUAL FEAR
     // =====================================
 
     if (waveNumber === 1) {
 
         queue.push({
-            type:'sniperNeedle',
-            enemyType:'needle',
+            type:'lotusSpread',
+            enemyType:'flower',
             x:120,
             y:-20,
             delay:t
         });
 
-        t += 50;
+        t += 80;
 
         queue.push({
-            type:'sniperNeedle',
-            enemyType:'needle',
+            type:'lotusSpread',
+            enemyType:'flower',
             x:280,
             y:-20,
             delay:t
         });
 
-        t += 120;
+        t += 160;
 
         queue.push({
-            type:'sweepDisc',
-            enemyType:'disc',
+            type:'waterfall',
+            enemyType:'needle',
             x:200,
             y:-40,
             delay:t
@@ -1649,7 +1570,7 @@ buildWave(waveNumber) {
 
     // =====================================
     // WAVE 2
-    // SWEEP CONTROL
+    // STREAM LEARNING
     // =====================================
 
     else if (waveNumber === 2) {
@@ -1657,46 +1578,38 @@ buildWave(waveNumber) {
         for (let i = 0; i < 3; i++) {
 
             queue.push({
-                type:'sweepDisc',
-                enemyType:'disc',
+                type:'dualStream',
+                enemyType:'crab',
                 x:100 + i * 100,
-                y:-40,
+                y:-20,
                 delay:t
             });
 
-            t += 80;
+            t += 90;
         }
 
         t += 120;
 
         queue.push({
-            type:'interceptor',
-            enemyType:'crab',
+            type:'spiralBloom',
+            enemyType:'disc',
             x:200,
-            y:-40,
+            y:100,
             delay:t
         });
     }
 
     // =====================================
     // WAVE 3
-    // CROSS PRESSURE
+    // SCREEN CONTROL
     // =====================================
 
     else if (waveNumber === 3) {
 
         queue.push({
-            type:'crossLancer',
-            enemyType:'crab',
-            x:100,
-            y:80,
-            delay:t
-        });
-
-        queue.push({
-            type:'crossLancer',
-            enemyType:'crab',
-            x:300,
+            type:'memoryRose',
+            enemyType:'flower',
+            x:200,
             y:80,
             delay:t
         });
@@ -1704,56 +1617,54 @@ buildWave(waveNumber) {
         t += 180;
 
         queue.push({
-            type:'sniperNeedle',
+            type:'waterfall',
             enemyType:'needle',
-            x:200,
+            x:120,
             y:-20,
             delay:t
         });
 
-        t += 90;
-
         queue.push({
-            type:'interceptor',
-            enemyType:'coffin',
-            x:200,
-            y:-40,
+            type:'waterfall',
+            enemyType:'needle',
+            x:280,
+            y:-20,
             delay:t
         });
     }
 
     // =====================================
     // WAVE 4
-    // DODONPACHI STYLE
+    // TOUHOU STYLE
     // =====================================
 
     else if (waveNumber === 4) {
 
         queue.push({
-            type:'phaseFlower',
-            enemyType:'flower',
+            type:'spiralBloom',
+            enemyType:'disc',
             x:120,
-            y:60,
+            y:70,
             delay:t
         });
 
-        t += 90;
+        t += 70;
 
         queue.push({
-            type:'phaseFlower',
-            enemyType:'flower',
+            type:'spiralBloom',
+            enemyType:'disc',
             x:280,
-            y:60,
+            y:70,
             delay:t
         });
 
-        t += 140;
+        t += 180;
 
         queue.push({
-            type:'crossLancer',
-            enemyType:'crab',
+            type:'memoryRose',
+            enemyType:'flower',
             x:200,
-            y:80,
+            y:100,
             delay:t
         });
     }
@@ -1766,48 +1677,38 @@ buildWave(waveNumber) {
     else if (waveNumber === 5) {
 
         queue.push({
-            type:'interceptor',
-            enemyType:'coffin',
-            x:120,
-            y:-20,
-            delay:t
-        });
-
-        t += 60;
-
-        queue.push({
-            type:'interceptor',
-            enemyType:'coffin',
-            x:280,
-            y:-20,
-            delay:t
-        });
-
-        t += 120;
-
-        queue.push({
-            type:'phaseFlower',
-            enemyType:'flower',
-            x:200,
-            y:60,
-            delay:t
-        });
-
-        t += 140;
-
-        queue.push({
-            type:'crossLancer',
+            type:'dualStream',
             enemyType:'crab',
             x:90,
-            y:80,
+            y:-20,
             delay:t
         });
 
         queue.push({
-            type:'crossLancer',
+            type:'dualStream',
             enemyType:'crab',
             x:310,
+            y:-20,
+            delay:t
+        });
+
+        t += 100;
+
+        queue.push({
+            type:'spiralBloom',
+            enemyType:'disc',
+            x:200,
             y:80,
+            delay:t
+        });
+
+        t += 180;
+
+        queue.push({
+            type:'memoryRose',
+            enemyType:'flower',
+            x:200,
+            y:90,
             delay:t
         });
     }
